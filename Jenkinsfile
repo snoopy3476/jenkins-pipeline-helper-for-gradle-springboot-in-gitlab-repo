@@ -121,10 +121,6 @@ List stageEnv () { [
 	HOST_UID: "${env.UID}",
 	HOST_GID: "${env.GID}",
 
-	// repo
-	REPO_URL: "${env.gitlabSourceBranch}",
-
-
 	// gradle config
 	GRADLE_HOME_PATH: "${env.WORKSPACE}/.gradle", // path in containers
 	GRADLE_LOCAL_CACHE_PATH: "/tmp/jenkins/.gradle", // path of host machine
@@ -217,7 +213,7 @@ Map<String,Closure> pipelineData () { [
 
 			// parallel build
 			parallel ([
-				'[0] Actial gradle build': {
+				'[0] Main gradle build': {
 
 					sh (
 						label: 'Gradle Build',
@@ -311,7 +307,7 @@ Map<String,Closure> pipelineData () { [
 
 
 /***** Push Stage *****/
-
+/*
 	Push: {
 		docker.image('docker:latest').inside {
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
@@ -323,7 +319,7 @@ Map<String,Closure> pipelineData () { [
 		}
 	},
 
-
+*/
 
 
 ].asImmutable() }
