@@ -307,7 +307,7 @@ Map<String,Closure> pipelineData () { [
 
 
 /***** Push Stage *****/
-/*
+
 	Push: {
 		docker.image('docker:latest').inside {
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
@@ -319,7 +319,7 @@ Map<String,Closure> pipelineData () { [
 		}
 	},
 
-*/
+
 
 
 ].asImmutable() }

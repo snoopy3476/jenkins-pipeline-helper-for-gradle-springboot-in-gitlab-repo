@@ -105,7 +105,7 @@ def runWithSlackMsgWrapper (Closure closure) {
 List<String> slackEnv (slackResponse) { [
 
 	SLACK_BUILD_TIME_STR: (new Date()).toString(),
-	SLACK_MSG_CH: slackResponse?.channelId,
+	SLACK_MSG_CH: (slackResponse ?: [channelId: env.SLACK_MSG_CH])?.channelId,
 	SLACK_MSG_TS: slackResponse?.ts,
 
 ].collect {"${it.key}=${it.value}"} }
