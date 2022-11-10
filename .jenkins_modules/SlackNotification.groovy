@@ -162,7 +162,7 @@ String slackMsgHeader () { (
 		"<"
 		+ "${env.RUN_DISPLAY_URL}" // pipeline page link
 		+ "|${env.JOB_NAME}" // job name
-		+ " (${env.BUILD_NUMBER}: " + String.join(' ', scm?.branches?.collect { elem -> elem.name }) + ")" // build # + branch
+		+ " (${env.BUILD_NUMBER}: ${env.gitlabSourceBranch})" // build # + branch
 		+ ">"
 	)
 

@@ -20,24 +20,12 @@ void main () {
 
 
 
-
 		// load scripts //
-		checkout ([
-			$class: 'GitSCM',
-			userRemoteConfigs: [[
-				url: 'http://192.168.7.83/common/jenkinspipeline.git', 
-				credentialsId: 'GitLab-SCM'
-			]],
-			branches: [[name: '*/master']],
-			extensions: [[
-				$class: 'RelativeTargetDirectory',
-				relativeTargetDir: '.jenkins'
-			]],
-		])
+		checkout (scm)
     
-		def pipelineHelper = load ('.jenkins/modules/JenkinsPipelineHelper.groovy')
-		def gitlabCallbacks = load ('.jenkins/modules/GitlabNotification.groovy')
-		def slackCallbacks = load ('.jenkins/modules/SlackNotification.groovy')
+		def pipelineHelper = load ('.jenkins_modules/JenkinsPipelineHelper.groovy')
+		def gitlabCallbacks = load ('.jenkins_modules/GitlabNotification.groovy')
+		def slackCallbacks = load ('.jenkins_modules/SlackNotification.groovy')
 
 
 
@@ -78,12 +66,11 @@ void main () {
 
 
 
-
 		// run pipeline //
 
 		assert (
 			slackCallbacks.runWithSlackMsgWrapper { // send slack msg before and after running inner closure
-
+				
 				// inner closure
 				withEnv (stageEnv()) {
 					pipelineHelper (pipelineData, callbackData)
@@ -130,7 +117,7 @@ List stageEnv () { [
 	PRIVATE_REG_PORT: "5000",
 	DEPLOY_IMG_NAME: "${env.JOB_NAME}".toLowerCase(), // Job name should be docker-img-name-compatible
 	DEPLOY_IMG_TAG: "build-${env.BUILD_NUMBER}",
-	PRIVATE_REG_CRED_ID: "inner-private-registry-cred" // Jenkins credential
+	PRIVATE_REG_CRED_ID: "inner-private-registry-cred", // Jenkins credential
 
 ].collect {"${it.key}=${it.value}"} }
 
@@ -191,7 +178,7 @@ Map<String,Closure> pipelineData () { [
 
 /***** Checkout Stage *****/
 
-	Checkout: {
+	'Checkout & Merge': {
 		checkout (scm)
 		checkout ([
 			$class: 'GitSCM',
@@ -199,7 +186,16 @@ Map<String,Closure> pipelineData () { [
 				url: "${env.gitlabSourceRepoHttpUrl}",
 				credentialsId: 'GitLab-SCM'
 			]],
-			branches: [[name: '*/develop']],
+			branches: [[name: "*/${env.gitlabSourceBranch}"]],
+			extensions: [[
+				$class: 'PreBuildMerge',
+				options: [
+					fastForwardMode: 'FF',
+					mergeRemote: 'origin',
+					mergeStrategy: 'DEFAULT',
+					mergeTarget: "${env.gitlabTargetBranch}"
+				]
+			]],
 		])
 	},
 
@@ -307,7 +303,7 @@ Map<String,Closure> pipelineData () { [
 
 
 /***** Push Stage *****/
-
+/*
 	Push: {
 		docker.image('docker:latest').inside {
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
@@ -318,7 +314,7 @@ Map<String,Closure> pipelineData () { [
 			}
 		}
 	},
-
+*/
 
 
 
