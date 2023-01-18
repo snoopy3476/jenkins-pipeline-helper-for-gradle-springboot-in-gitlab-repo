@@ -131,6 +131,8 @@ String slackEmoji (String stageState = null) {
 			return (':black_large_square:')
 		case 'aborted':
 			return (':black_square_for_stop:')
+		case 'skipped':
+			return (':heavy_check_mark:')
 		default:
 			return (':small_orange_diamond:')
 	}

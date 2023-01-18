@@ -60,6 +60,14 @@ Map<String,Closure> call () { [
 
 
 
+	skipped: { List<Map> pipeline, int stageIdx, List<String> stageStateList ->
+
+		updateGitlabCommitStatusWrapper (pipeline[stageIdx].stageDisplayName, 'success')
+
+	},
+
+
+
 ].asImmutable() }
 
 

@@ -22,6 +22,7 @@
  */
 boolean call (pipelineData, callbackData = null) {
 
+
 	// check if arg is valid
 
 	// pipelineData
@@ -118,35 +119,45 @@ boolean runPipelineStage (List<Map> pipeline, int stageIdx, List<String> stageSt
 
 		// check if pipeline[stageIdx] is valid stage
 		&& pipeline[stageIdx]?.stageName && pipeline[stageIdx]?.stageDisplayName
-		&& pipeline[stageIdx]?.stageClosure instanceof Closure
 	) {
 
 		echo (" - runPipelineStage [${stageIdx+1}/${pipeline.size()}] ('${pipeline[stageIdx].stageDisplayName}')")
 
-		try {
+		if (pipeline[stageIdx]?.stageClosure != null) {
+			try {
 
-			// run stage
-			onStageCallback (callbackData, 'running', pipeline, stageIdx, stageStateList)
-			stage (pipeline[stageIdx].stageName) {
-				pipeline[stageIdx].stageClosure ()
+				// run stage
+				onStageCallback (callbackData, 'running', pipeline, stageIdx, stageStateList)
+				stage (pipeline[stageIdx].stageName) {
+					pipeline[stageIdx].stageClosure ()
+				}
+				onStageCallback (callbackData, 'passed', pipeline, stageIdx, stageStateList)
+
+			} catch (e) {
+
+				// print error msg
+				echo (" - runPipelineStage: Exception on stage run \n${e.message}")
+
+				// process error
+				onStageCallback (callbackData, (e instanceof InterruptedException ? 'aborted' : 'failed'), pipeline, stageIdx, stageStateList)
+
+				// remaining as canceled
+				(stageIdx+1 ..< pipeline.size()).each { int idx ->
+					onStageCallback (callbackData, 'canceled', pipeline, idx, stageStateList)
+				}
+
+				// return false if failed
+				return (false)
 			}
-			onStageCallback (callbackData, 'passed', pipeline, stageIdx, stageStateList)
-
-		} catch (e) {
-
-			// print error msg
-			echo (" - runPipelineStage: Exception on stage run \n${e.message}")
-
-			// process error
-			onStageCallback (callbackData, (e instanceof InterruptedException ? 'aborted' : 'failed'), pipeline, stageIdx, stageStateList)
-
-			// remaining as canceled
-			(stageIdx+1 ..< pipeline.size()).each { int idx ->
-				onStageCallback (callbackData, 'canceled', pipeline, idx, stageStateList)
+		} else {
+			// if not valid closure, skip this stage
+			stage(pipeline[stageIdx].stageName) {
+				org.jenkinsci.plugins.pipeline.modeldefinition.Utils.markStageSkippedForConditional(
+					pipeline[stageIdx]?.stageName
+				)				
 			}
-
-			// return false if failed
-			return (false)
+			onStageCallback (callbackData, 'skipped', pipeline, stageIdx, stageStateList)
+			
 		}
 
 		// run next stage, creating new pipeline starting from it
@@ -189,7 +200,6 @@ Map<String,List<Closure>> newCallback (Map<String,List<Closure>> callbackData) {
  *       @param     stageStateList    Current states for all stages: stageStateList[idx] is a state for pipeline[idx]
  */
 void onStageCallback (Map<String,List<Closure>> callbackData, String stageState, List<Map> pipeline, int stageIdx, List<String> stageStateList = []) {
-
 
 	// exit if pipeline/stageIdx is invalid
 	if (((pipeline?.size())?:0) <= stageIdx) {
