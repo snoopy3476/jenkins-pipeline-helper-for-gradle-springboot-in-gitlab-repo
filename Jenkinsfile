@@ -18,11 +18,11 @@
 - IMG_BUILDER_IMG_NAME
     Image to use when building a target repo
     - Type: String
-    - Default: "openjdk:latest"
+    - Default: "gradle:jdk"
 - IMG_TESTER_IMG_NAME
     Image to use when testing the built result of target repo
     - Type: String
-    - Default: "openjdk:latest"
+    - Default: "gradle:jdk"
 - IMG_DEPLOYER_IMG_NAME
     Image to use when deploying the built result to remote registry
     - Type: String
@@ -355,13 +355,14 @@ Map<String,Closure> pipelineData () { [
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
 			docker.withRegistry ("${env.PRIVATE_REG_URL}:${env.PRIVATE_REG_PORT}", env.PRIVATE_REG_CRED_ID) {
 
-				dockerImg.push ( "${env.DEPLOY_IMG_TAG ?: ("build-${env.BUILD_NUMBER}" + (commitHash ? "_" + commitHash : ""))}" )
-
-				// latest
+				// additional tag: latest
 				if (env.DEPLOY_IMG_TO_LATEST.toBoolean()) {
-					echo "Deploying previous image as additional tag 'latest'..."
+					echo "Deploying image as tag 'latest' first..."
 					dockerImg.push ()
 				}
+
+				dockerImg.push ( "${env.DEPLOY_IMG_TAG ?: ("build-${env.BUILD_NUMBER}" + (commitHash ? "_" + commitHash : ""))}" )
+
 			}
 		}
 	},

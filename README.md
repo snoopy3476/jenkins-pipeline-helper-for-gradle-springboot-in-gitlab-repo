@@ -1,11 +1,11 @@
 # Jenkins Pipeline Helper for Gradle SpringBoot in GitLab repo
-Simple Jenkins Pipeline Runner for SpringBoot project managed with GitLab repository (both gitlab.com and private)
+Simple Demo Jenkins Pipeline Runner for SpringBoot project managed with GitLab repository (both gitlab.com and private)
 
 ## Prerequisites
 - A gradle SpringBoot project repository in GitLab
 - A Jenkins pipeline project, that this Jenkins Pipeline Helper is applied  
   (See [How to Configure](#how-to-configure) section below)
-- A webhook integration configured between the two above  
+- Webhook integrations configured between the two above  
   (GitLab repository ⇔ Jenkins project)
 
 ## What Does This Do
@@ -21,10 +21,20 @@ Simple Jenkins Pipeline Runner for SpringBoot project managed with GitLab reposi
         - Dockerfile should be placed at the repository root.
         - Configuration is required using Jenkins project parameter below. (Parameters starting with `IMG_REGISTRY_`...)
   
+  ![jenkins-pipeline-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/jenkins-pipeline-img.png?raw=true)
+  
   - Send realtime notification messages to GitLab and Slack, while running each stages above  
     (if related plugins [`GitLab`](https://plugins.jenkins.io/gitlab-plugin/), [`Slack Notification`](https://plugins.jenkins.io/slack/) are installed then preconfigured on Jenkins configuration)
     
     - Note: When configuring `Slack Notification` plugin, you should create your own new Slack app with [`Bot user mode`](https://plugins.jenkins.io/slack/#plugin-content-bot-user-mode).
+  
+  ![noti-slack-animation.gif](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/noti-slack-animation.gif?raw=true)
+  
+  ![noti-slack-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/noti-slack-img.png?raw=true)
+  
+  ![noti-gitlab-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/noti-gitlab-img.png?raw=true)
+  
+
 
 ## How to Configure
 - Create a new project (item) on Jenkins.
@@ -39,7 +49,7 @@ Simple Jenkins Pipeline Runner for SpringBoot project managed with GitLab reposi
           - E.g) `tags/v0.1.1` (tag - recommended), `*/master` (branch), ...
     - `Script Path`: `Jenkinsfile`
     
-  ![pipeline-config-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/ce836c052a18ceccc789a6653cfe3a8fd816d082/.readme-img/pipeline-config-img.png?raw=true)
+  ![pipeline-config-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/pipeline-config-img.png?raw=true)
 
 - (Optional) If you want to change values for parameters inside the `Jenkinsfile`:
   - Check `This project is parameterized` checkbox.
@@ -79,6 +89,20 @@ Simple Jenkins Pipeline Runner for SpringBoot project managed with GitLab reposi
       - Type: String
       - Default: Slack plugin configuration default
     
-  ![parameter-config-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/ce836c052a18ceccc789a6653cfe3a8fd816d082/.readme-img/parameter-config-img.png?raw=true)
+  ![parameter-config-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/parameter-config-img.png?raw=true)
 
 - Set the rest of the configs, according to your target repository.
+
+## Using Different Pipeline
+To use your own custom pipeline other than the current simple demo (maintaining message functions to GitLab and Slack),
+- Fork or clone this repository
+- Modify contents of pipeline in `Map<String,Closure> pipelineData ()` method inside `Jenkinsfile`
+  - Key is name of a stage, and value is a closure to run at that stage
+    - If the value is null, the stage will be skipped, and also marked as 'skipped' on Jenkins and Slack.
+
+
+## Author
+Kim Hwiwon \<kim.hwiwon@outlook.com\>
+
+## License
+The MIT License (MIT)
