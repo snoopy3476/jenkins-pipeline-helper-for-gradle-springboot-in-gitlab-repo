@@ -12,11 +12,6 @@
 Map<String,Closure> call () { [
 
 
-	pending: { List<Map> pipeline, int stageIdx, List<String> stageStateList ->
-	},
-
-
-
 	running: { List<Map> pipeline, int stageIdx, List<String> stageStateList ->
 
 		if (env.SLACK_MSG_TS != null) { // only if updating already-sent msg is possible
@@ -50,7 +45,7 @@ Map<String,Closure> call () { [
 	failed: { List<Map> pipeline, int stageIdx, List<String> stageStateList ->
 
 		slackSendWrapper (
-			slackEmoji('failed') + ' Job *FAILED*!\n'
+			slackEmoji('failed') + ' Stage *FAILED*!\n'
 				+ slackStageProgressMsg (pipeline, stageStateList + ['failed'], 'canceled')
 			, 'danger'
 		)
@@ -62,7 +57,7 @@ Map<String,Closure> call () { [
 	aborted: { List<Map> pipeline, int stageIdx, List<String> stageStateList ->
 
 		slackSendWrapper (
-			slackEmoji('aborted') + ' Job Aborted!\n'
+			slackEmoji('aborted') + ' Stage Aborted!\n'
 				+ slackStageProgressMsg (pipeline, stageStateList + ['aborted'], 'canceled')
 			, 'warning'
 		)
@@ -174,6 +169,7 @@ String slackMsgHeader () { (
 			+ ">] "
 		: ""
 	)
+	+ "\n"
 
 	// Link to jenkins job info (with slack link format grammar)
 	//   'jobname (build#: branch)'
@@ -184,6 +180,14 @@ String slackMsgHeader () { (
 		+ " (${env.BUILD_NUMBER}: ${env.gitlabSourceBranch})" // build # + branch
 		+ ">"
 	)
+	+ "\n"
+
+	// Username
+	+(
+		" - by *${env.gitlabUserName}*" // GitLab username
+		+ ((env.gitlabMergeRequestIid != null) ? "\n_[MergeRequest]_" : "")
+	)
+	+ "\n"
 
 ) }
 

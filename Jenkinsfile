@@ -13,33 +13,47 @@
 /*************************************************** 
 - REPO_CRED_ID
     ID of a Jenkins credential for a target repo you want to build
+    - Type: String
     - Default: ""
 - IMG_BUILDER_IMG_NAME
     Image to use when building a target repo
+    - Type: String
     - Default: "openjdk:latest"
 - IMG_TESTER_IMG_NAME
     Image to use when testing the built result of target repo
+    - Type: String
     - Default: "openjdk:latest"
 - IMG_DEPLOYER_IMG_NAME
     Image to use when deploying the built result to remote registry
+    - Type: String
     - Default: "docker:latest"
 - IMG_REGISTRY_URL
     Url of a remote registry to deploy built image
+    - Type: String
     - Default: "http://127.0.0.1"
 - IMG_REGISTRY_PORT
     Port of a remote registry to deploy built image
+    - Type: String
     - Default: "5000"
 - IMG_REGISTRY_CRED_ID
     ID of a Jenkins credential for a remote registry you want to deploy
+    - Type: String
     - Default: ""
 - IMG_NAME
     Name of an image you want inside a remote registry
+    - Type: String
     - Default: "${env.gitlabSourceRepoName}".toLowerCase()
 - IMG_TAG
     Tag of an image you want inside a remote registry
-    - Default: "build-${env.BUILD_NUMBER}"
+    - Type: String
+    - Default: "build-${env.BUILD_NUMBER}_${commitHash}"
+- IMG_IS_LATEST
+    Current image is also set as 'latest' tag, in addition to IMG_TAG
+    - Type: bool
+    - Default: true
 - SLACK_MSG_CH
     Channel of Slack to send notification
+    - Type: String
     - Default: Slack plugin configuration default
  ***************************************************/
 
@@ -66,7 +80,7 @@ void main () {
 
 
 		// load scripts //
-		checkout (scm)
+		checkout (scm) // checkout srcs of this helper
     
 		def pipelineHelper = load ('.jenkins_modules/JenkinsPipelineHelper.groovy')
 		def gitlabCallbacks = load ('.jenkins_modules/GitlabNotification.groovy')
@@ -78,7 +92,7 @@ void main () {
 
 		// set pipeline data //
 
-		Map<String,Closure> pipelineData = pipelineData (env.gitlabMergeRequestIid != null)
+		Map<String,Closure> pipelineData = pipelineData ()
 
 
 
@@ -90,6 +104,7 @@ void main () {
 			gitlabCallbacks(),
 			slackCallbacks(),
 /*
+			// custom callbacks if you want
 			[
 				pending: [
 					{pipeline, stageIdx, stateList -> echo ("customCB - pending '${pipeline[stageIdx].stageName}'")},
@@ -117,7 +132,8 @@ void main () {
 		// run pipeline //
 
 		assert (
-			slackCallbacks.triggerAndEnableSlackMsgCallbacks { // send triggered slack msg before running inner closure, then set env for running callbacks
+			// send triggered slack msg before running inner closure, then set env for running callbacks
+			slackCallbacks.triggerAndEnableSlackMsgCallbacks {
 				
 				// inner closure
 				withEnv (stageEnv()) {
@@ -128,9 +144,7 @@ void main () {
 
 
 
-
-
-	} // node
+	}
 }
 
 
@@ -171,7 +185,8 @@ List stageEnv () { [
 	PRIVATE_REG_URL: env.IMG_REGISTRY_URL ?: "http://127.0.0.1",
 	PRIVATE_REG_PORT: env.IMG_REGISTRY_PORT ?: "5000",
 	DEPLOY_IMG_NAME: env.IMG_NAME ?: "${env.gitlabSourceRepoName}".toLowerCase(), // Job name should be docker-img-name-compatible
-	DEPLOY_IMG_TAG: env.IMG_TAG ?: "build-${env.BUILD_NUMBER}",
+	DEPLOY_IMG_TAG: env.IMG_TAG ?: "", // Real default value will be evaluated at runtime below
+	DEPLOY_IMG_TO_LATEST: env.IMG_IS_LATEST ?: true,
 	PRIVATE_REG_CRED_ID: env.IMG_REGISTRY_CRED_ID ?: "", // Registry credential on Jenkins config
 
 ].collect {"${it.key}=${it.value}"} }
@@ -190,17 +205,16 @@ List stageEnv () { [
 /**
  *   Get pipeline data
  *
- *       @param     isMergeRequest   is pipeline for merge request
  *       @return                     Map of [(stageName): (stageClosure)]
  */
-Map<String,Closure> pipelineData (boolean isMergeRequest = false) { [
+Map<String,Closure> pipelineData () { [
 
 
-
+// TO MAKE JENKINS SKIP STAGE, SET CLOSURE VALUE TO NULL (SEE 'DEPLOY' STAGE BELOW)
 /***** Checkout Stage *****/
 
-	(isMergeRequest ? 'Checkout & Merge' : 'Checkout'): {
-		checkout (scm)
+	('Checkout' + (env.gitlabMergeRequestIid != null ? ' & Merge' : '')) : {
+		//checkout (scm)
 		checkout ([
 			$class: 'GitSCM',
 			userRemoteConfigs: [[
@@ -224,7 +238,7 @@ Map<String,Closure> pipelineData (boolean isMergeRequest = false) { [
 
 /***** Build Stage *****/
 
-	Build: {
+	'Build': {
 
 		docker.image(env.BUILDER_IMG_NAME).inside ("-u 0:0 -v $HOME/.gradle:${env.GRADLE_HOME_PATH}"){
 
@@ -257,7 +271,7 @@ Map<String,Closure> pipelineData (boolean isMergeRequest = false) { [
 
 /***** Test Stage *****/
 
-	Test: {
+	'Test': {
 		try {
 			docker.image(env.TESTER_IMG_NAME).inside ("-u 0:0 -v $HOME/.gradle:${env.GRADLE_HOME_PATH}") {
 				sh (
@@ -325,19 +339,29 @@ Map<String,Closure> pipelineData (boolean isMergeRequest = false) { [
 
 /***** Deploy Stage *****/
 
-	Deploy: isMergeRequest ? null : {
+	'Deploy': (env.gitlabMergeRequestIid != null) ? null : { // skip deploy stage if merge request
 
 		if ( ! fileExists('Dockerfile') ) {
 			echo ("Dockerfile not found. Built result not deployed.")
 			return
 		}
 
+		String commitHash = sh (
+				script: 'git rev-parse --short HEAD',
+				returnStdout: true
+			).trim()
+
 		docker.image(env.DEPLOYER_IMG_NAME).inside("-v /var/run/docker.sock:/var/run/docker.sock") {
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
-			docker.withRegistry ("${env.PRIVATE_REG_URL}:${env.PRIVATE_REG_PORT}"
-				, env.PRIVATE_REG_CRED_ID) {
-				dockerImg.push ("${env.DEPLOY_IMG_TAG}")
-				dockerImg.push () // latest
+			docker.withRegistry ("${env.PRIVATE_REG_URL}:${env.PRIVATE_REG_PORT}", env.PRIVATE_REG_CRED_ID) {
+
+				dockerImg.push ( "${env.DEPLOY_IMG_TAG ?: ("build-${env.BUILD_NUMBER}" + (commitHash ? "_" + commitHash : ""))}" )
+
+				// latest
+				if (env.DEPLOY_IMG_TO_LATEST.toBoolean()) {
+					echo "Deploying previous image as additional tag 'latest'..."
+					dockerImg.push ()
+				}
 			}
 		}
 	},

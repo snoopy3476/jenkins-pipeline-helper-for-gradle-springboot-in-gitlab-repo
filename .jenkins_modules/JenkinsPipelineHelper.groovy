@@ -89,15 +89,20 @@ boolean call (pipelineData, callbackData = null) {
  *       @param     pipelineData    Pipeline data (Map<String,Closure>) to execute
  *       @return                    Pipeline
  */
-List<Map> newPipeline (Map<String,Closure> pipelineData) { (
-	[ pipelineData?.collect{it}, (1 .. (pipelineData?.size())?:1) ].transpose().collect { List stageElem ->
-		immutableMap ([
-			stageName: stageElem?.get(0)?.key,
-			stageDisplayName: "${stageElem?.get(1)}. ${stageElem?.get(0)?.key}",
-			stageClosure: stageElem?.get(0)?.value?.clone()
-		])
-	}
-) }
+List<Map> newPipeline (Map<String,Closure> pipelineData) {
+
+	int numPadding = ((pipelineData?.size() ?: 1) - 1).toString().length()
+
+	return (
+		[ pipelineData?.collect{it}, (1 .. (pipelineData?.size())?:1) ].transpose().collect { List stageElem ->
+			immutableMap ([
+				stageName: stageElem?.get(0)?.key,
+				stageDisplayName: ((stageElem?.get(1) ?: 0).toString().padLeft(numPadding, '0')) + ". ${stageElem?.get(0)?.key}",
+				stageClosure: stageElem?.get(0)?.value?.clone()
+			])
+		}
+	)
+}
 
 
 /**
