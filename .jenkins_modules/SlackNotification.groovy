@@ -34,7 +34,11 @@ Map<String,Closure> call () { [
 
 		if (env.SLACK_MSG_TS != null) { // only if updating already-sent msg is possible
 			slackSendWrapper (
-				slackEmoji('passed') + ' Stage Passed' + '\n'
+				(
+					(pipeline.size()-1 == stageIdx)
+						? slackEmoji('passed') + ' Pipeline Passed'
+						: slackEmoji('passed') + ' Stage Passed'
+				) + '\n'
 					+ slackStageProgressMsg (pipeline, stageStateList + ['passed'])
 			)
 		}
@@ -67,6 +71,23 @@ Map<String,Closure> call () { [
 
 
 
+	skipped: { List<Map> pipeline, int stageIdx, List<String> stageStateList ->
+
+		if (env.SLACK_MSG_TS != null) { // only if updating already-sent msg is possible
+			slackSendWrapper (
+				(
+					(pipeline.size()-1 == stageIdx)
+						? slackEmoji('passed') + ' Pipeline Passed'
+						: slackEmoji('skipped') + ' Stage Skipped'
+				) + '\n'
+					+ slackStageProgressMsg (pipeline, stageStateList + ['skipped'])
+			)
+		}
+
+	},
+
+
+
 ].asImmutable() }
 
 
@@ -79,15 +100,11 @@ Map<String,Closure> call () { [
  *       @param     closure   Closure to run
  *       @return              Return value of closure
  */
-def runWithSlackMsgWrapper (Closure closure) {
+def triggerAndEnableSlackMsgCallbacks (Closure closure) {
 
 	withEnv ( slackEnv( slackSendWrapper("${slackEmoji()} Pipeline Triggered") ) ) {
 
-		def retVal = closure ()
-		if ( retVal ) {
-			slackSendWrapper ("${slackEmoji('passed')} Pipeline Passed")
-		}
-		return (retVal)
+		return closure ()
 	}
 
 }
@@ -132,7 +149,7 @@ String slackEmoji (String stageState = null) {
 		case 'aborted':
 			return (':black_square_for_stop:')
 		case 'skipped':
-			return (':heavy_check_mark:')
+			return (':negative_squared_cross_mark:')
 		default:
 			return (':small_orange_diamond:')
 	}

@@ -17,20 +17,20 @@
 - IMG_BUILDER_IMG_NAME
     Image to use when building a target repo
     - Default: "openjdk:latest"
-- TESTER_IMG_NAME
+- IMG_TESTER_IMG_NAME
     Image to use when testing the built result of target repo
     - Default: "openjdk:latest"
-- PUSHER_IMG_NAME
-    Image to use when pushing the built result to remote registry
+- IMG_DEPLOYER_IMG_NAME
+    Image to use when deploying the built result to remote registry
     - Default: "docker:latest"
 - IMG_REGISTRY_URL
-    Url of a remote registry to push built image
+    Url of a remote registry to deploy built image
     - Default: "http://127.0.0.1"
 - IMG_REGISTRY_PORT
-    Port of a remote registry to push built image
+    Port of a remote registry to deploy built image
     - Default: "5000"
 - IMG_REGISTRY_CRED_ID
-    ID of a Jenkins credential for a remote registry you want to push
+    ID of a Jenkins credential for a remote registry you want to deploy
     - Default: ""
 - IMG_NAME
     Name of an image you want inside a remote registry
@@ -61,7 +61,7 @@
  *   Run example jenkins pipeline using helper
  */
 void main () {
-	podTemplate (podTemplateArgs()) { node ('jenkins-slave-pod') {
+	node {
 
 
 
@@ -78,7 +78,7 @@ void main () {
 
 		// set pipeline data //
 
-		Map<String,Closure> pipelineData = pipelineData ()
+		Map<String,Closure> pipelineData = pipelineData (env.gitlabMergeRequestIid != null)
 
 
 
@@ -117,13 +117,12 @@ void main () {
 		// run pipeline //
 
 		assert (
-			slackCallbacks.runWithSlackMsgWrapper { // send slack msg before and after running inner closure
+			slackCallbacks.triggerAndEnableSlackMsgCallbacks { // send triggered slack msg before running inner closure, then set env for running callbacks
 				
 				// inner closure
 				withEnv (stageEnv()) {
 					pipelineHelper (pipelineData, callbackData)
 				}
-
 			}
 		)
 
@@ -131,7 +130,7 @@ void main () {
 
 
 
-	} } // node, podTemplate
+	} // node
 }
 
 
@@ -166,7 +165,7 @@ List stageEnv () { [
 	// builder config
 	BUILDER_IMG_NAME: env.IMG_BUILDER_IMG_NAME ?: "openjdk:latest",
 	TESTER_IMG_NAME: env.IMG_TESTER_IMG_NAME ?: env.IMG_BUILDER_IMG_NAME ?: "openjdk:latest",
-	PUSHER_IMG_NAME: env.IMG_PUSHER_IMG_NAME ?: "docker:latest",
+	DEPLOYER_IMG_NAME: env.IMG_DEPLOYER_IMG_NAME ?: "docker:latest",
 
 	// docker private registry config
 	PRIVATE_REG_URL: env.IMG_REGISTRY_URL ?: "http://127.0.0.1",
@@ -176,41 +175,6 @@ List stageEnv () { [
 	PRIVATE_REG_CRED_ID: env.IMG_REGISTRY_CRED_ID ?: "", // Registry credential on Jenkins config
 
 ].collect {"${it.key}=${it.value}"} }
-
-
-/**
- *   Get podTemplate args
- *
- *       @return    Immutable Map of podtemplate arguments
- */
-Map podTemplateArgs () { [
-
-	label: 'jenkins-slave-pod', 
-	containers: [
-		containerTemplate (
-			name: 'build-container',
-			image: 'openjdk:11',
-			command: 'cat',
-			ttyEnabled: true,
-		),
-		containerTemplate (
-			name: 'push-container',
-			image: 'docker',
-			command: 'cat',
-			ttyEnabled: true
-		),
-	],
-	volumes: [ 
-		// for docker
-		hostPathVolume (mountPath: '/var/run/docker.sock',
-				hostPath: '/var/run/docker.sock'), 
-		// gradle home caching: mount local host path to 'env.GRADLE_HOME_PATH'
-		hostPathVolume (mountPath: "${env.GRADLE_HOME_PATH}",
-				hostPath: "${env.GRADLE_LOCAL_CACHE_PATH}"),
-	],
-
-
-].asImmutable() }
 
 
 
@@ -226,15 +190,16 @@ Map podTemplateArgs () { [
 /**
  *   Get pipeline data
  *
- *       @return    Map of [(stageName): (stageClosure)]
+ *       @param     isMergeRequest   is pipeline for merge request
+ *       @return                     Map of [(stageName): (stageClosure)]
  */
-Map<String,Closure> pipelineData () { [
+Map<String,Closure> pipelineData (boolean isMergeRequest = false) { [
 
 
 
 /***** Checkout Stage *****/
 
-	'Checkout & Merge': {
+	(isMergeRequest ? 'Checkout & Merge' : 'Checkout'): {
 		checkout (scm)
 		checkout ([
 			$class: 'GitSCM',
@@ -358,11 +323,16 @@ Map<String,Closure> pipelineData () { [
 
 
 
-/***** Push Stage *****/
+/***** Deploy Stage *****/
 
-	Push: env.gitlabMergeRequestIid != null ? null : {
+	Deploy: isMergeRequest ? null : {
 
-		docker.image(env.PUSHER_IMG_NAME).inside("-v /var/run/docker.sock:/var/run/docker.sock") {
+		if ( ! fileExists('Dockerfile') ) {
+			echo ("Dockerfile not found. Built result not deployed.")
+			return
+		}
+
+		docker.image(env.DEPLOYER_IMG_NAME).inside("-v /var/run/docker.sock:/var/run/docker.sock") {
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
 			docker.withRegistry ("${env.PRIVATE_REG_URL}:${env.PRIVATE_REG_PORT}"
 				, env.PRIVATE_REG_CRED_ID) {

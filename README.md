@@ -10,7 +10,7 @@ Simple Jenkins Pipeline Runner for SpringBoot project stored in GitLab repositor
         - `Repository URL`: `https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-inside-gitlab.git`
         - `Credentials`: `- none -`
       - `Branches to build`
-        - `Branch Specifier`: (Branch that you want. (e.g. */master))
+        - `Branch Specifier`: (Branch/tag of this helper you want to use (e.g. `*/master` (branch), `tags/v0.1.1` (tag), ...))
     - `Script Path`: `Jenkinsfile`
 - (Optional) If you want to change values for parameters inside the Jenkinsfile,
   - Check 'This project is parameterized' checkbox.
