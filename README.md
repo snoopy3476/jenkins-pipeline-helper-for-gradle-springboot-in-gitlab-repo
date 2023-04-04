@@ -46,7 +46,7 @@ Simple Demo Jenkins Pipeline Runner for SpringBoot project managed with GitLab r
         - `Credentials`: `- none -`
       - `Branches to build`
         - `Branch Specifier`: (Tag/branch of this helper you want to use)
-          - E.g) `tags/v0.1.1` (tag - recommended), `*/master` (branch), ...
+          - E.g) `tags/v0.1.2` (tag - recommended), `*/master` (branch), ...
     - `Script Path`: `Jenkinsfile`
     
   ![pipeline-config-img.png](https://github.com/snoopy3476/jenkins-pipeline-helper-for-gradle-springboot-in-gitlab-repo/blob/135c8b5c3c4402dedac81eef3bf539c001f5d20a/.readme-img/pipeline-config-img.png?raw=true)
