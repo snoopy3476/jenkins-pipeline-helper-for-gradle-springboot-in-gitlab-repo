@@ -351,7 +351,7 @@ Map<String,Closure> pipelineData () { [
 				returnStdout: true
 			).trim()
 
-		docker.image(env.DEPLOYER_IMG_NAME).inside("-v /var/run/docker.sock:/var/run/docker.sock") {
+		docker.image(env.DEPLOYER_IMG_NAME).inside("-u 0:0 -v /var/run/docker.sock:/var/run/docker.sock") {
 			dockerImg = docker.build ("${env.DEPLOY_IMG_NAME}")
 			docker.withRegistry ("${env.PRIVATE_REG_URL}:${env.PRIVATE_REG_PORT}", env.PRIVATE_REG_CRED_ID) {
 
