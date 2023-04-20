@@ -29,12 +29,11 @@ Map<String,Closure> call () { [
 
 		if (env.SLACK_MSG_TS != null) { // only if updating already-sent msg is possible
 			slackSendWrapper (
-				(
 					(pipeline.size()-1 == stageIdx)
 						? slackEmoji('passed') + ' Pipeline Passed'
 						: slackEmoji('passed') + ' Stage Passed'
-				) + '\n'
-					+ slackStageProgressMsg (pipeline, stageStateList + ['passed'])
+							+ '\n'
+							+ slackStageProgressMsg (pipeline, stageStateList + ['passed'])
 			)
 		}
 
@@ -70,12 +69,11 @@ Map<String,Closure> call () { [
 
 		if (env.SLACK_MSG_TS != null) { // only if updating already-sent msg is possible
 			slackSendWrapper (
-				(
 					(pipeline.size()-1 == stageIdx)
 						? slackEmoji('passed') + ' Pipeline Passed'
 						: slackEmoji('skipped') + ' Stage Skipped'
-				) + '\n'
-					+ slackStageProgressMsg (pipeline, stageStateList + ['skipped'])
+							+ '\n'
+							+ slackStageProgressMsg (pipeline, stageStateList + ['skipped'])
 			)
 		}
 
@@ -158,9 +156,18 @@ String slackEmoji (String stageState = null) {
  */
 String slackMsgHeader () { (
 
+
+	// Message header sign: yellow on MR, red on push
+	"===================================\n"
+	+(
+		(env.gitlabMergeRequestIid != null) ? ":large_yellow_circle: " : ":red_circle: "
+	)
+
+
+
 	// Leading Timestamp (with slack date format grammar)
 	//   '[TimeStamp]'
-	(
+	+(
 		env.SLACK_MSG_TS
 		? "[<!date"
 			+ "^${ env.SLACK_MSG_TS.substring( 0, (env.SLACK_MSG_TS + '.').indexOf('.') ) }" // ts
@@ -169,7 +176,7 @@ String slackMsgHeader () { (
 			+ ">] "
 		: ""
 	)
-	+ "\n"
+	
 
 	// Link to jenkins job info (with slack link format grammar)
 	//   'jobname (build#: branch)'
@@ -177,17 +184,38 @@ String slackMsgHeader () { (
 		"<"
 		+ "${env.RUN_DISPLAY_URL}" // pipeline page link
 		+ "|${env.JOB_NAME}" // job name
-		+ " (${env.BUILD_NUMBER}: ${env.gitlabSourceBranch})" // build # + branch
+		+ " (${env.BUILD_NUMBER})" // build # + branch
 		+ ">"
+	)
+	+ "\n"
+
+	// Job Info
+	+(
+		((env.gitlabMergeRequestIid != null)
+		?
+			" - from MergeRequest *'<"
+				+ env.gitlabTargetRepoHttpUrl.substring(0, env.gitlabTargetRepoHttpUrl.lastIndexOf(".git"))
+				+ "/-/merge_requests/${env.gitlabMergeRequestIid}"
+				+ "|${env.gitlabMergeRequestTitle}"
+				+ ">'*"
+				+ " -> ${env.gitlabTargetRepoName}: ${env.gitlabTargetBranch}"
+		:
+			" - from Repository *<"
+				+ "${env.gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}"
+				+ "|${env.gitlabSourceNamespace}/${env.gitlabSourceRepoName}: ${env.gitlabSourceBranch}"
+				+ ">*"
+
+		)
+
 	)
 	+ "\n"
 
 	// Username
 	+(
 		" - by *${env.gitlabUserName}*" // GitLab username
-		+ ((env.gitlabMergeRequestIid != null) ? "\n_[MergeRequest]_" : "")
 	)
 	+ "\n"
+
 
 ) }
 
