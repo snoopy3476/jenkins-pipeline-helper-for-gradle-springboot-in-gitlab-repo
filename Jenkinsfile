@@ -213,24 +213,39 @@ Map<String,Closure> pipelineData () { [
 // TO MAKE JENKINS SKIP STAGE, SET CLOSURE VALUE TO NULL (SEE 'DEPLOY' STAGE BELOW)
 /***** Checkout Stage *****/
 
-	('Checkout' + (env.gitlabMergeRequestIid != null ? ' & Merge' : '')) : {
-		//checkout (scm)
+	('Checkout' + (env.gitlabMergeRequestIid == null ? "" : " (MR)")): {
+
 		checkout ([
 			$class: 'GitSCM',
 			userRemoteConfigs: [[
-				url: env.gitlabSourceRepoHttpUrl,
-				credentialsId: env.TARGET_REPO_CRED_ID
+				url: (
+					env.gitlabMergeRequestIid == null
+					? env.gitlabSourceRepoHttpUrl
+					: env.gitlabTargetRepoHttpUrl
+				),
+				credentialsId: env.TARGET_REPO_CRED_ID,
+				refspec: '+refs/heads/*:refs/remotes/origin/* +refs/merge-requests/*/head:refs/remotes/origin/merge-requests/*'
 			]],
-			branches: [[name: "*/${env.gitlabSourceBranch}"]],
-			extensions: [[
-				$class: 'PreBuildMerge',
-				options: [
-					fastForwardMode: 'FF',
-					mergeRemote: 'origin',
-					mergeStrategy: 'DEFAULT',
-					mergeTarget: env.gitlabTargetBranch
+			branches: [[
+				name: (
+					env.gitlabMergeRequestIid == null
+					? "origin/${env.gitlabSourceBranch}"
+					: "origin/merge-requests/${env.gitlabMergeRequestIid}"
+				)
+			]],
+			extensions: [
+/*
+				[
+					$class: 'PreBuildMerge',
+					options: [
+						fastForwardMode: 'FF',
+						mergeRemote: 'origin',
+						mergeStrategy: 'DEFAULT',
+						mergeTarget: env.gitlabTargetBranch
+					]
 				]
-			]],
+*/
+			],
 		])
 	},
 
